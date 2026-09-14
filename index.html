@@ -218,7 +218,7 @@
     // --- QUẢN LÝ THỜI HẠN KHẢO SÁT ---
     function getDeadlineStr() {
         // Nếu admin chưa cài, mặc định là ngày 30/09/2026
-        return localStorage.getItem('aiSurveyDeadline') || "2026-09-30T17:30";
+        return localStorage.getItem('aiSurveyDeadline') || "2026-09-15T08:00";
     }
 
     function saveDeadline() {
@@ -252,14 +252,9 @@
     const defaultQuestions = [
         {
             id: "q1",
-            text: "Thầy/Cô đánh giá mức độ ứng dụng AI (ChatGPT, Gemini...) của mình ở mức nào?",
-            options: ["Chưa từng sử dụng", "Cơ bản (Tra cứu thông tin, hỏi đáp)", "Trung bình (Soạn giáo án, tóm tắt tài liệu)", "Nâng cao (Tạo đề thi, viết mã LaTeX/TikZ)"]
+            text: "Thầy/Cô đang ứng dụng trí tuệ nhân tạo (AI) trong hoạt động dạy học ở mức độ nào dưới đây? (Vui lòng chọn một phương án phù hợp nhất).",
+            options: ["Tôi chưa sử dụng các công cụ AI trong công việc dạy học của mình.", "Tôi sử dụng AI để đặt các câu hỏi cho AI trả lời, tìm kiếm các thông tin cơ bản.", "Tôi sử dụng AI để soạn giáo án, tạo học liệu, hình ảnh, bài giảng, thiết kế câu hỏi/bài tập, hỗ trợ kiểm tra – đánh giá học sinh.", "Tôi kết hợp nhiều công cụ AI để cá nhân hóa nội dung dạy học, phân tích kết quả học tập, tạo học liệu phù hợp với từng nhóm học sinh và hỗ trợ đổi mới phương pháp dạy học cũng như dùng AI hỗ trợ thực hiện các nhiệm vụ khác được giao."]
         },
-        {
-            id: "q2",
-            text: "AI giúp tiết kiệm khoảng bao nhiêu thời gian chuẩn bị bài mỗi tuần?",
-            options: ["Không đáng kể", "Dưới 2 giờ", "Từ 2 đến 5 giờ", "Trên 5 giờ"]
-        }
     ];
 
     function getQuestions() {
