@@ -112,7 +112,7 @@
             <div id="dynamic-questions-container"></div>
             
             <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button type="button" style="flex: 1;" onclick="submitSurvey()">Gửi kết quả</button>
+                <button type="button" id="btn-submit" style="flex: 1;" onclick="submitSurvey(event)">Gửi kết quả</button>
                 <button type="button" style="flex: 1;" class="btn-secondary" onclick="logout()">Thoát</button>
             </div>
         </form>
@@ -128,7 +128,8 @@
     <!-- MÀN HÌNH ADMIN QUẢN TRỊ -->
     <div id="admin-view" class="view-section">
         <h2>Trang Quản Trị Hệ Thống</h2>
-        <div style="text-align: right; margin-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <button class="btn-success" onclick="renderAdminDashboard()">Làm mới dữ liệu</button>
             <button class="btn-secondary" onclick="logout()">Đăng xuất Admin</button>
         </div>
 
@@ -176,7 +177,6 @@
                     <tbody id="results-tbody"></tbody>
                 </table>
             </div>
-            <button class="btn-danger" style="margin-top: 15px;" onclick="clearAllData()">Xóa toàn bộ dữ liệu khảo sát</button>
         </div>
 
         <!-- TAB 2: QUẢN LÝ CÂU HỎI -->
@@ -211,8 +211,12 @@
 <script>
     Chart.register(ChartDataLabels);
 
+    // Đường dẫn kết nối trực tiếp với Google Sheets
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyZJB3alR_j_8J_m6zPk3H4j5NKNoeThiINurLkWY1GP4FW9glUDgVVqgV_YsaqmKM/exec";
+
     let currentTeacher = "";
     let myChart = null;
+    window.cloudResponses = [];
 
     // --- QUẢN LÝ THỜI HẠN KHẢO SÁT ---
     function getDeadlineStr() {
@@ -260,7 +264,6 @@
         }
     ];
 
-    // Dùng key 'aiQuestionsV3' để tránh bị đè bởi cache cũ
     function getQuestions() {
         let qs = JSON.parse(localStorage.getItem('aiQuestionsV3'));
         if (!qs || qs.length === 0) {
@@ -321,7 +324,8 @@
         });
     }
 
-    function submitSurvey() {
+    // Gửi dữ liệu về Google Sheets
+    function submitSurvey(event) {
         const questions = getQuestions();
         const surveyData = {
             name: currentTeacher,
@@ -336,15 +340,29 @@
             else isComplete = false;
         });
 
-        if (!isComplete) { alert("Vui lòng trả lời đầy đủ tất cả các câu hỏi!"); return; }
+        if (!isComplete) { 
+            alert("Vui lòng trả lời đầy đủ tất cả các câu hỏi!"); 
+            return; 
+        }
 
-        let responses = JSON.parse(localStorage.getItem('aiSurveyDataV2')) || [];
-        const existingIndex = responses.findIndex(r => r.name === currentTeacher);
-        if (existingIndex > -1) responses[existingIndex] = surveyData;
-        else responses.push(surveyData);
-        
-        localStorage.setItem('aiSurveyDataV2', JSON.stringify(responses));
-        showView('thankyou-view');
+        const btnSubmit = document.getElementById('btn-submit');
+        btnSubmit.innerText = "Đang gửi kết quả lên hệ thống...";
+        btnSubmit.disabled = true;
+
+        fetch(SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(surveyData)
+        }).then(() => {
+            btnSubmit.innerText = "Gửi kết quả";
+            btnSubmit.disabled = false;
+            showView('thankyou-view');
+        }).catch(err => {
+            alert("Có lỗi khi kết nối hệ thống. Vui lòng kiểm tra lại kết nối mạng!");
+            btnSubmit.innerText = "Gửi kết quả";
+            btnSubmit.disabled = false;
+        });
     }
 
     function logout() {
@@ -365,7 +383,7 @@
     }
 
     // --- QUẢN TRỊ VIÊN: THỐNG KÊ & BỘ LỌC ---
-    function renderAdminDashboard() {
+    async function renderAdminDashboard() {
         document.getElementById('admin-deadline').value = getDeadlineStr();
 
         const questions = getQuestions();
@@ -376,8 +394,19 @@
             select.innerHTML += `<option value="${q.id}">Câu ${index + 1}: ${q.text}</option>`;
         });
 
-        initFilters();
-        if(questions.length > 0) renderChart();
+        const tbody = document.getElementById('results-tbody');
+        tbody.innerHTML = `<tr><td colspan="${questions.length + 3}" style="text-align:center;">Đang đồng bộ dữ liệu từ Google Sheets...</td></tr>`;
+
+        try {
+            const response = await fetch(SCRIPT_URL);
+            window.cloudResponses = await response.json();
+            
+            initFilters();
+            renderTable();
+            if (questions.length > 0) renderChart();
+        } catch (err) {
+            tbody.innerHTML = `<tr><td colspan="${questions.length + 3}" style="text-align:center; color:red;">Lỗi kết nối cơ sở dữ liệu: ${err.message}</td></tr>`;
+        }
     }
 
     function initFilters() {
@@ -411,14 +440,14 @@
 
     function renderTable() {
         const questions = getQuestions();
-        const responses = JSON.parse(localStorage.getItem('aiSurveyDataV2')) || [];
+        const responses = window.cloudResponses || [];
         
         const filterQ = document.getElementById('filter-q').value;
         const filterA = document.getElementById('filter-a').value;
         
         let filteredRes = responses;
         if (filterQ !== 'all' && filterA !== 'all') {
-            filteredRes = responses.filter(r => r.answers[filterQ] === filterA);
+            filteredRes = responses.filter(r => r.answers && r.answers[filterQ] === filterA);
         }
 
         const thead = document.getElementById('results-thead');
@@ -435,7 +464,9 @@
         } else {
             filteredRes.forEach((res, index) => {
                 let trHtml = `<td>${index + 1}</td><td>${res.name}</td><td>${res.timestamp}</td>`;
-                questions.forEach(q => { trHtml += `<td>${res.answers[q.id] || '-'}</td>`; });
+                questions.forEach(q => { 
+                    trHtml += `<td>${(res.answers && res.answers[q.id]) ? res.answers[q.id] : '-'}</td>`; 
+                });
                 tbody.innerHTML += `<tr>${trHtml}</tr>`;
             });
         }
@@ -443,7 +474,7 @@
 
     function renderChart() {
         const questions = getQuestions();
-        const responses = JSON.parse(localStorage.getItem('aiSurveyDataV2')) || [];
+        const responses = window.cloudResponses || [];
         const selectedQId = document.getElementById('chart-question-select').value;
         const targetQ = questions.find(q => q.id === selectedQId);
         
@@ -453,8 +484,10 @@
         targetQ.options.forEach(opt => counts[opt] = 0);
         
         responses.forEach(res => {
-            const answer = res.answers[selectedQId];
-            if (answer && counts[answer] !== undefined) counts[answer]++;
+            if (res.answers) {
+                const answer = res.answers[selectedQId];
+                if (answer && counts[answer] !== undefined) counts[answer]++;
+            }
         });
 
         const labels = Object.keys(counts);
@@ -496,14 +529,6 @@
                 }
             }
         });
-    }
-
-    function clearAllData() {
-        if(confirm("Thầy/cô có chắc chắn muốn xóa TOÀN BỘ kết quả khảo sát không?")) {
-            localStorage.removeItem('aiSurveyDataV2');
-            renderAdminDashboard();
-            alert("Đã xóa toàn bộ kết quả.");
-        }
     }
 
     // --- QUẢN TRỊ VIÊN: QUẢN LÝ CÂU HỎI ---
