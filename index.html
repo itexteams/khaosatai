@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Khảo sát Ứng dụng AI của Giáo viên</title>
+    <!-- Tải thư viện Chart.js và thư viện nhãn dữ liệu (để hiện %) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <style>
+        :root {
+            /* Thay đổi màu chủ đạo sang #009999 */
+            --primary-color: #009999; 
+            --primary-hover: #007373;
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-color: #333;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: var(--card-bg);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 900px;
+        }
+        h2, h3 { text-align: center; color: var(--primary-color); }
+        .view-section { display: none; }
+        .view-section.active { display: block; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 500; }
+        input[type="text"], input[type="datetime-local"], textarea, select {
+            width: 100%; padding: 10px; border: 1px solid #ccc;
+            border-radius: 5px; box-sizing: border-box; font-size: 15px;
+        }
+        .radio-group { margin-bottom: 10px; }
+        .radio-group input { margin-right: 10px; accent-color: var(--primary-color); }
+        button {
+            padding: 10px 15px; background-color: var(--primary-color);
+            color: white; border: none; border-radius: 5px; font-size: 15px;
+            cursor: pointer; transition: background 0.3s;
+        }
+        button:hover { background-color: var(--primary-hover); }
+        button.btn-secondary { background-color: var(--secondary-color); }
+        button.btn-secondary:hover { background-color: #5a6268; }
+        button.btn-danger { background-color: var(--danger-color); }
+        button.btn-success { background-color: var(--success-color); }
+        
+        .alert { color: #721c24; background-color: #f8d7da; padding: 10px; border-radius: 5px; margin-bottom: 15px; display: none; }
+        .deadline-text { color: #d9534f; font-weight: bold; }
+        
+        /* Bảng hiển thị */
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+        table, th, td { border: 1px solid #ddd; }
+        th, td { padding: 10px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .chart-container { width: 100%; max-width: 500px; margin: 30px auto; }
+        
+        /* Tabs Admin */
+        .admin-tabs { display: flex; border-bottom: 2px solid #ccc; margin-bottom: 20px; }
+        .tab-btn { background: none; color: var(--text-color); padding: 10px 20px; border-radius: 5px 5px 0 0; margin-right: 5px; font-weight: bold; border-bottom: none; }
+        .tab-btn.active { background: var(--primary-color); color: white; }
+        .admin-pane { display: none; }
+        .admin-pane.active { display: block; }
+        
+        /* Quản lý câu hỏi */
+        .question-card { border: 1px solid #ddd; padding: 15px; border-radius: 5px; margin-bottom: 15px; background: #f9f9f9; }
+        .question-card h4 { margin-top: 0; color: #333; }
+        .editor-modal { display: none; background: #fdfdfd; border: 2px solid var(--primary-color); padding: 20px; border-radius: 5px; margin-bottom: 20px; }
+        .editor-modal textarea { height: 100px; resize: vertical; }
+
+        /* Vùng Filter và Cài đặt */
+        .admin-box { background: #f2fbcf; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid var(--primary-color); background-color: #e0f2f1; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- MÀN HÌNH ĐĂNG NHẬP -->
+    <div id="login-view" class="view-section active">
+        <h2>Khảo sát ứng dụng trí tuệ nhân tạo (AI) trong giảng dạy đối với giáo viên trường THPT ATK Tân Trào</h2>
+        <div id="login-alert" class="alert"></div>
+        <div class="form-group">
+            <label for="username">Họ và tên Giáo viên:(ví dụ: Phạm Ngọc Chiến)</label>
+            <input type="text" id="username" placeholder="Nhập tên của thầy/cô..." autocomplete="off">
+        </div>
+        <button style="width: 100%" onclick="handleLogin()">Đăng nhập</button>
+    </div>
+
+    <!-- MÀN HÌNH KHẢO SÁT DÀNH CHO GIÁO VIÊN -->
+    <div id="survey-view" class="view-section">
+        <h2>PHIẾU KHẢO SÁT</h2>
+        <p>Xin chào thầy/cô: <strong id="display-name"></strong></p>
+        <p><em>Hạn cuối tham gia: <span id="display-deadline" class="deadline-text"></span></em></p>
+        <hr>
+        <form id="survey-form">
+            <!-- Khu vực chứa câu hỏi động -->
+            <div id="dynamic-questions-container"></div>
+            
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button type="button" style="flex: 1;" onclick="submitSurvey()">Gửi kết quả</button>
+                <button type="button" style="flex: 1;" class="btn-secondary" onclick="logout()">Thoát</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- MÀN HÌNH CẢM ƠN -->
+    <div id="thankyou-view" class="view-section">
+        <h2>Cảm ơn thầy/cô đã tham gia khảo sát, chúc thầy/cô năm học mới hoàn thành xuất sắc nhiệm vụ được giao!</h2>
+        <p style="text-align: center;">Kết quả khảo sát đã được ghi nhận thành công.</p>
+        <button class="btn-secondary" style="width: 100%" onclick="logout()">Quay lại trang chủ</button>
+    </div>
+
+    <!-- MÀN HÌNH ADMIN QUẢN TRỊ -->
+    <div id="admin-view" class="view-section">
+        <h2>Trang Quản Trị Hệ Thống</h2>
+        <div style="text-align: right; margin-bottom: 10px;">
+            <button class="btn-secondary" onclick="logout()">Đăng xuất Admin</button>
+        </div>
+
+        <div class="admin-tabs">
+            <button class="tab-btn active" onclick="switchAdminTab('stats-pane', this)">Thống kê Kết quả</button>
+            <button class="tab-btn" onclick="switchAdminTab('questions-pane', this)">Quản lý Câu hỏi</button>
+        </div>
+
+        <!-- TAB 1: THỐNG KÊ & CÀI ĐẶT -->
+        <div id="stats-pane" class="admin-pane active">
+            
+            <!-- Cài đặt thời gian kết thúc -->
+            <div class="admin-box">
+                <label style="font-weight: bold; color: var(--primary-color);">Cài đặt thời gian kết thúc khảo sát:</label>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <input type="datetime-local" id="admin-deadline" style="flex: 1;">
+                    <button onclick="saveDeadline()" style="width: auto;">Cập nhật thời gian</button>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top: 30px;">
+                <label style="font-weight: bold;">Biểu đồ thống kê theo từng câu hỏi:</label>
+                <select id="chart-question-select" onchange="renderChart()"></select>
+            </div>
+            <div class="chart-container">
+                <canvas id="resultChart"></canvas>
+            </div>
+
+            <h3 style="text-align: left; margin-top: 30px;">Danh sách chi tiết</h3>
+            
+            <!-- Bộ lọc danh sách chi tiết -->
+            <div style="background: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #ddd;">
+                <label style="font-weight: bold; display: block; margin-bottom: 10px;">Lọc kết quả theo nhóm câu trả lời:</label>
+                <div style="display: flex; gap: 10px;">
+                    <select id="filter-q" onchange="updateFilterAns()" style="flex: 1;"></select>
+                    <select id="filter-a" onchange="renderTable()" style="flex: 1;">
+                        <option value="all">-- Tất cả đáp án --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table id="results-table">
+                    <thead id="results-thead"></thead>
+                    <tbody id="results-tbody"></tbody>
+                </table>
+            </div>
+            <button class="btn-danger" style="margin-top: 15px;" onclick="clearAllData()">Xóa toàn bộ dữ liệu khảo sát</button>
+        </div>
+
+        <!-- TAB 2: QUẢN LÝ CÂU HỎI -->
+        <div id="questions-pane" class="admin-pane">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: #333;">Danh sách câu hỏi hiện tại</h3>
+                <button class="btn-success" onclick="openQuestionEditor()">+ Thêm câu hỏi mới</button>
+            </div>
+
+            <!-- Form Thêm/Sửa câu hỏi -->
+            <div id="question-editor" class="editor-modal">
+                <h4 id="editor-title" style="margin-top: 0;">Thêm/Sửa câu hỏi</h4>
+                <input type="hidden" id="edit-q-id">
+                <div class="form-group">
+                    <label>Nội dung câu hỏi:</label>
+                    <input type="text" id="edit-q-text" placeholder="Nhập câu hỏi...">
+                </div>
+                <div class="form-group">
+                    <label>Các phương án lựa chọn (Mỗi phương án 1 dòng):</label>
+                    <textarea id="edit-q-options" placeholder="Phương án A&#10;Phương án B&#10;Phương án C"></textarea>
+                </div>
+                <button onclick="saveQuestion()">Lưu câu hỏi</button>
+                <button class="btn-secondary" onclick="closeQuestionEditor()">Hủy bỏ</button>
+            </div>
+
+            <!-- Nơi render danh sách câu hỏi -->
+            <div id="admin-questions-list"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    Chart.register(ChartDataLabels);
+
+    let currentTeacher = "";
+    let myChart = null;
+
+    // --- QUẢN LÝ THỜI HẠN KHẢO SÁT ---
+    function getDeadlineStr() {
+        // Nếu admin chưa cài, mặc định là ngày 30/09/2026
+        return localStorage.getItem('aiSurveyDeadline') || "2026-09-30T17:30";
+    }
+
+    function saveDeadline() {
+        const val = document.getElementById('admin-deadline').value;
+        if(!val) { alert("Vui lòng chọn ngày và giờ hợp lệ!"); return; }
+        localStorage.setItem('aiSurveyDeadline', val);
+        alert("Đã cập nhật thời hạn khảo sát thành công!");
+        updateDeadlineDisplay();
+    }
+
+    function formatDateTime(dateObj) {
+        const hh = String(dateObj.getHours()).padStart(2, '0');
+        const mm = String(dateObj.getMinutes()).padStart(2, '0');
+        const dd = String(dateObj.getDate()).padStart(2, '0');
+        const mo = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const yyyy = dateObj.getFullYear();
+        return `${hh} giờ ${mm} phút, ngày ${dd}/${mo}/${yyyy}`;
+    }
+
+    function updateDeadlineDisplay() {
+        const dlDate = new Date(getDeadlineStr());
+        const displayEl = document.getElementById('display-deadline');
+        if(displayEl) displayEl.innerText = formatDateTime(dlDate);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        updateDeadlineDisplay();
+    });
+
+    // --- DỮ LIỆU CÂU HỎI MẶC ĐỊNH ---
+    const defaultQuestions = [
+        {
+            id: "q1",
+            text: "Thầy/Cô đánh giá mức độ ứng dụng AI (ChatGPT, Gemini...) của mình ở mức nào?",
+            options: ["Chưa từng sử dụng", "Cơ bản (Tra cứu thông tin, hỏi đáp)", "Trung bình (Soạn giáo án, tóm tắt tài liệu)", "Nâng cao (Tạo đề thi, viết mã LaTeX/TikZ)"]
+        },
+        {
+            id: "q2",
+            text: "AI giúp tiết kiệm khoảng bao nhiêu thời gian chuẩn bị bài mỗi tuần?",
+            options: ["Không đáng kể", "Dưới 2 giờ", "Từ 2 đến 5 giờ", "Trên 5 giờ"]
+        }
+    ];
+
+    function getQuestions() {
+        let qs = JSON.parse(localStorage.getItem('aiQuestions'));
+        if (!qs || qs.length === 0) {
+            localStorage.setItem('aiQuestions', JSON.stringify(defaultQuestions));
+            return defaultQuestions;
+        }
+        return qs;
+    }
+
+    function showView(viewId) {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        document.getElementById(viewId).classList.add('active');
+    }
+
+    // --- ĐĂNG NHẬP VÀ XỬ LÝ KHẢO SÁT ---
+    function handleLogin() {
+        const usernameInput = document.getElementById('username').value.trim();
+        const alertBox = document.getElementById('login-alert');
+        alertBox.style.display = 'none';
+
+        if (!usernameInput) {
+            alertBox.innerText = "Vui lòng nhập họ và tên!";
+            alertBox.style.display = 'block';
+            return;
+        }
+
+        if (usernameInput.toLowerCase() === 'admin') {
+            showView('admin-view');
+            renderAdminDashboard();
+            return;
+        }
+
+        const deadlineDate = new Date(getDeadlineStr());
+        if (new Date() > deadlineDate) {
+            alertBox.innerText = `Đã hết thời hạn tham gia lúc ${formatDateTime(deadlineDate)}.`;
+            alertBox.style.display = 'block';
+            return;
+        }
+
+        currentTeacher = usernameInput;
+        document.getElementById('display-name').innerText = currentTeacher;
+        renderSurveyForm();
+        showView('survey-view');
+    }
+
+    function renderSurveyForm() {
+        const container = document.getElementById('dynamic-questions-container');
+        container.innerHTML = '';
+        const questions = getQuestions();
+
+        questions.forEach((q, index) => {
+            let html = `<div class="form-group"><label>${index + 1}. ${q.text}</label>`;
+            q.options.forEach((opt) => {
+                html += `<div class="radio-group"><label><input type="radio" name="${q.id}" value="${opt}" required> ${opt}</label></div>`;
+            });
+            html += `</div>`;
+            container.innerHTML += html;
+        });
+    }
+
+    function submitSurvey() {
+        const questions = getQuestions();
+        const surveyData = {
+            name: currentTeacher,
+            timestamp: new Date().toLocaleString('vi-VN'),
+            answers: {}
+        };
+
+        let isComplete = true;
+        questions.forEach(q => {
+            const selected = document.querySelector(`input[name="${q.id}"]:checked`);
+            if (selected) surveyData.answers[q.id] = selected.value;
+            else isComplete = false;
+        });
+
+        if (!isComplete) { alert("Vui lòng trả lời đầy đủ tất cả các câu hỏi!"); return; }
+
+        let responses = JSON.parse(localStorage.getItem('aiSurveyDataV2')) || [];
+        const existingIndex = responses.findIndex(r => r.name === currentTeacher);
+        if (existingIndex > -1) responses[existingIndex] = surveyData;
+        else responses.push(surveyData);
+        
+        localStorage.setItem('aiSurveyDataV2', JSON.stringify(responses));
+        showView('thankyou-view');
+    }
+
+    function logout() {
+        document.getElementById('username').value = '';
+        currentTeacher = "";
+        showView('login-view');
+    }
+
+    // --- QUẢN TRỊ VIÊN: TAB LOGIC ---
+    function switchAdminTab(tabId, btnElement) {
+        document.querySelectorAll('.admin-pane').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        btnElement.classList.add('active');
+        
+        if (tabId === 'stats-pane') renderAdminDashboard();
+        if (tabId === 'questions-pane') renderQuestionsManager();
+    }
+
+    // --- QUẢN TRỊ VIÊN: THỐNG KÊ & BỘ LỌC ---
+    function renderAdminDashboard() {
+        document.getElementById('admin-deadline').value = getDeadlineStr(); // Nạp giờ cài đặt
+
+        const questions = getQuestions();
+        
+        // Cập nhật biểu đồ Select Box
+        const select = document.getElementById('chart-question-select');
+        select.innerHTML = '';
+        questions.forEach((q, index) => {
+            select.innerHTML += `<option value="${q.id}">Câu ${index + 1}: ${q.text}</option>`;
+        });
+
+        initFilters();
+        if(questions.length > 0) renderChart();
+    }
+
+    // Khởi tạo các Select Box của Bộ Lọc
+    function initFilters() {
+        const questions = getQuestions();
+        const selectQ = document.getElementById('filter-q');
+        selectQ.innerHTML = '<option value="all">-- Lọc theo tất cả câu hỏi --</option>';
+        
+        questions.forEach((q, idx) => {
+            selectQ.innerHTML += `<option value="${q.id}">Lọc theo: Câu ${idx + 1}</option>`;
+        });
+        updateFilterAns(); 
+    }
+
+    // Khi chọn Câu hỏi, tự cập nhật danh sách Đáp án tương ứng
+    function updateFilterAns() {
+        const selectQ = document.getElementById('filter-q').value;
+        const selectA = document.getElementById('filter-a');
+        const questions = getQuestions();
+        
+        selectA.innerHTML = '<option value="all">-- Tất cả đáp án --</option>';
+        
+        if (selectQ !== 'all') {
+            const targetQ = questions.find(q => q.id === selectQ);
+            if (targetQ) {
+                targetQ.options.forEach(opt => {
+                    selectA.innerHTML += `<option value="${opt}">${opt}</option>`;
+                });
+            }
+        }
+        renderTable(); // Vẽ lại bảng khi bộ lọc thay đổi
+    }
+
+    // Render bảng danh sách áp dụng bộ lọc
+    function renderTable() {
+        const questions = getQuestions();
+        const responses = JSON.parse(localStorage.getItem('aiSurveyDataV2')) || [];
+        
+        const filterQ = document.getElementById('filter-q').value;
+        const filterA = document.getElementById('filter-a').value;
+        
+        // Lọc dữ liệu mảng
+        let filteredRes = responses;
+        if (filterQ !== 'all' && filterA !== 'all') {
+            filteredRes = responses.filter(r => r.answers[filterQ] === filterA);
+        }
+
+        const thead = document.getElementById('results-thead');
+        const tbody = document.getElementById('results-tbody');
+        
+        // Render Header
+        let theadHtml = `<tr><th>STT</th><th>Họ và tên</th><th>Thời gian</th>`;
+        questions.forEach((q, index) => { theadHtml += `<th>Câu ${index + 1}</th>`; });
+        theadHtml += `</tr>`;
+        thead.innerHTML = questions.length > 0 ? theadHtml : '<tr><th>Chưa có câu hỏi nào</th></tr>';
+
+        // Render Body
+        tbody.innerHTML = '';
+        if (filteredRes.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="${questions.length + 3}" style="text-align:center;">Không có dữ liệu phù hợp với bộ lọc</td></tr>`;
+        } else {
+            filteredRes.forEach((res, index) => {
+                let trHtml = `<td>${index + 1}</td><td>${res.name}</td><td>${res.timestamp}</td>`;
+                questions.forEach(q => { trHtml += `<td>${res.answers[q.id] || '-'}</td>`; });
+                tbody.innerHTML += `<tr>${trHtml}</tr>`;
+            });
+        }
+    }
+
+    function renderChart() {
+        const questions = getQuestions();
+        const responses = JSON.parse(localStorage.getItem('aiSurveyDataV2')) || [];
+        const selectedQId = document.getElementById('chart-question-select').value;
+        const targetQ = questions.find(q => q.id === selectedQId);
+        
+        if(!targetQ) return;
+
+        const counts = {};
+        targetQ.options.forEach(opt => counts[opt] = 0);
+        
+        responses.forEach(res => {
+            const answer = res.answers[selectedQId];
+            if (answer && counts[answer] !== undefined) counts[answer]++;
+        });
+
+        const labels = Object.keys(counts);
+        const data = Object.values(counts);
+        const bgColors = ['#009999', '#ff9800', '#e91e63', '#2196f3', '#4caf50', '#9c27b0', '#607d8b'];
+
+        const ctx = document.getElementById('resultChart').getContext('2d');
+        if (myChart) myChart.destroy(); 
+
+        myChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{ data: data, backgroundColor: bgColors.slice(0, labels.length), borderWidth: 1 }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    datalabels: {
+                        color: '#fff', font: { weight: 'bold', size: 14 },
+                        formatter: (value, ctx) => {
+                            let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                            if (value === 0 || sum === 0) return '';
+                            return (value * 100 / sum).toFixed(1) + "%";
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                let value = context.raw || 0;
+                                let sum = context.chart._metasets[context.datasetIndex].total;
+                                let percentage = sum > 0 ? ((value * 100) / sum).toFixed(1) + '%' : '0%';
+                                return `${label}: ${value} GV (${percentage})`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function clearAllData() {
+        if(confirm("Thầy/cô có chắc chắn muốn xóa TOÀN BỘ kết quả khảo sát không?")) {
+            localStorage.removeItem('aiSurveyDataV2');
+            renderAdminDashboard();
+            alert("Đã xóa toàn bộ kết quả.");
+        }
+    }
+
+    // --- QUẢN TRỊ VIÊN: QUẢN LÝ CÂU HỎI ---
+    function renderQuestionsManager() {
+        const questions = getQuestions();
+        const container = document.getElementById('admin-questions-list');
+        container.innerHTML = '';
+
+        questions.forEach((q, index) => {
+            let optsHtml = q.options.map(o => `<li>${o}</li>`).join('');
+            container.innerHTML += `
+                <div class="question-card">
+                    <h4>Câu ${index + 1}: ${q.text}</h4>
+                    <ul>${optsHtml}</ul>
+                    <div style="margin-top: 10px;">
+                        <button onclick="editQuestion('${q.id}')">Sửa</button>
+                        <button class="btn-danger" onclick="deleteQuestion('${q.id}')">Xóa</button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function openQuestionEditor(qId = null) {
+        document.getElementById('question-editor').style.display = 'block';
+        if (qId) {
+            const q = getQuestions().find(x => x.id === qId);
+            document.getElementById('editor-title').innerText = "Sửa câu hỏi";
+            document.getElementById('edit-q-id').value = q.id;
+            document.getElementById('edit-q-text').value = q.text;
+            document.getElementById('edit-q-options').value = q.options.join('\n');
+        } else {
+            document.getElementById('editor-title').innerText = "Thêm câu hỏi mới";
+            document.getElementById('edit-q-id').value = "";
+            document.getElementById('edit-q-text').value = "";
+            document.getElementById('edit-q-options').value = "";
+        }
+    }
+    
+    function editQuestion(qId) { openQuestionEditor(qId); }
+    function closeQuestionEditor() { document.getElementById('question-editor').style.display = 'none'; }
+
+    function saveQuestion() {
+        const id = document.getElementById('edit-q-id').value;
+        const text = document.getElementById('edit-q-text').value.trim();
+        const optionsRaw = document.getElementById('edit-q-options').value.trim();
+        
+        if(!text || !optionsRaw) { alert("Vui lòng nhập đầy đủ Nội dung và Phương án!"); return; }
+
+        const options = optionsRaw.split('\n').map(o => o.trim()).filter(o => o.length > 0);
+        if(options.length < 2) { alert("Vui lòng nhập ít nhất 2 phương án!"); return; }
+
+        let questions = getQuestions();
+        if (id) {
+            const index = questions.findIndex(q => q.id === id);
+            questions[index].text = text;
+            questions[index].options = options;
+        } else {
+            const newId = "q_" + new Date().getTime(); 
+            questions.push({ id: newId, text: text, options: options });
+        }
+
+        localStorage.setItem('aiQuestions', JSON.stringify(questions));
+        closeQuestionEditor();
+        renderQuestionsManager();
+    }
+
+    function deleteQuestion(qId) {
+        if(confirm("Chắc chắn muốn xóa câu hỏi này?")) {
+            let questions = getQuestions();
+            questions = questions.filter(q => q.id !== qId);
+            localStorage.setItem('aiQuestions', JSON.stringify(questions));
+            renderQuestionsManager();
+        }
+    }
+</script>
+</body>
+</html>
