@@ -9,7 +9,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <style>
         :root {
-            /* Thay đổi màu chủ đạo sang #009999 */
             --primary-color: #009999; 
             --primary-hover: #007373;
             --secondary-color: #6c757d;
@@ -47,7 +46,7 @@
             width: 100%; padding: 10px; border: 1px solid #ccc;
             border-radius: 5px; box-sizing: border-box; font-size: 15px;
         }
-        .radio-group { margin-bottom: 10px; }
+        .radio-group { margin-bottom: 12px; line-height: 1.5; }
         .radio-group input { margin-right: 10px; accent-color: var(--primary-color); }
         button {
             padding: 10px 15px; background-color: var(--primary-color);
@@ -85,7 +84,7 @@
         .editor-modal textarea { height: 100px; resize: vertical; }
 
         /* Vùng Filter và Cài đặt */
-        .admin-box { background: #f2fbcf; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid var(--primary-color); background-color: #e0f2f1; }
+        .admin-box { padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid var(--primary-color); background-color: #e0f2f1; }
     </style>
 </head>
 <body>
@@ -96,7 +95,7 @@
         <h2>Khảo sát ứng dụng trí tuệ nhân tạo (AI) trong giảng dạy đối với giáo viên trường THPT ATK Tân Trào</h2>
         <div id="login-alert" class="alert"></div>
         <div class="form-group">
-            <label for="username">Họ và tên Giáo viên:(ví dụ: Phạm Ngọc Chiến)</label>
+            <label for="username">Họ và tên Giáo viên: (ví dụ: Phạm Ngọc Chiến)</label>
             <input type="text" id="username" placeholder="Nhập tên của thầy/cô..." autocomplete="off">
         </div>
         <button style="width: 100%" onclick="handleLogin()">Đăng nhập</button>
@@ -217,7 +216,6 @@
 
     // --- QUẢN LÝ THỜI HẠN KHẢO SÁT ---
     function getDeadlineStr() {
-        // Nếu admin chưa cài, mặc định là ngày 30/09/2026
         return localStorage.getItem('aiSurveyDeadline') || "2026-09-15T08:00";
     }
 
@@ -253,14 +251,20 @@
         {
             id: "q1",
             text: "Thầy/Cô đang ứng dụng trí tuệ nhân tạo (AI) trong hoạt động dạy học ở mức độ nào dưới đây? (Vui lòng chọn một phương án phù hợp nhất).",
-            options: ["Tôi chưa sử dụng các công cụ AI trong công việc dạy học của mình.", "Tôi sử dụng AI để đặt các câu hỏi cho AI trả lời, tìm kiếm các thông tin cơ bản.", "Tôi sử dụng AI để soạn giáo án, tạo học liệu, hình ảnh, bài giảng, thiết kế câu hỏi/bài tập, hỗ trợ kiểm tra – đánh giá học sinh.", "Tôi kết hợp nhiều công cụ AI để cá nhân hóa nội dung dạy học, phân tích kết quả học tập, tạo học liệu phù hợp với từng nhóm học sinh và hỗ trợ đổi mới phương pháp dạy học cũng như dùng AI hỗ trợ thực hiện các nhiệm vụ khác được giao."]
+            options: [
+                "Tôi chưa sử dụng các công cụ AI trong công việc dạy học của mình.",
+                "Tôi sử dụng AI để đặt các câu hỏi cho AI trả lời, tìm kiếm các thông tin cơ bản.",
+                "Tôi sử dụng AI để soạn giáo án, tạo học liệu, hình ảnh, bài giảng, thiết kế câu hỏi/bài tập, hỗ trợ kiểm tra – đánh giá học sinh.",
+                "Tôi kết hợp nhiều công cụ AI để cá nhân hóa nội dung dạy học, phân tích kết quả học tập, tạo học liệu phù hợp với từng nhóm học sinh và hỗ trợ đổi mới phương pháp dạy học cũng như dùng AI hỗ trợ thực hiện các nhiệm vụ khác được giao."
+            ]
         }
     ];
 
+    // Dùng key 'aiQuestionsV3' để tránh bị đè bởi cache cũ
     function getQuestions() {
-        let qs = JSON.parse(localStorage.getItem('aiQuestions'));
+        let qs = JSON.parse(localStorage.getItem('aiQuestionsV3'));
         if (!qs || qs.length === 0) {
-            localStorage.setItem('aiQuestions', JSON.stringify(defaultQuestions));
+            localStorage.setItem('aiQuestionsV3', JSON.stringify(defaultQuestions));
             return defaultQuestions;
         }
         return qs;
@@ -362,11 +366,10 @@
 
     // --- QUẢN TRỊ VIÊN: THỐNG KÊ & BỘ LỌC ---
     function renderAdminDashboard() {
-        document.getElementById('admin-deadline').value = getDeadlineStr(); // Nạp giờ cài đặt
+        document.getElementById('admin-deadline').value = getDeadlineStr();
 
         const questions = getQuestions();
         
-        // Cập nhật biểu đồ Select Box
         const select = document.getElementById('chart-question-select');
         select.innerHTML = '';
         questions.forEach((q, index) => {
@@ -377,7 +380,6 @@
         if(questions.length > 0) renderChart();
     }
 
-    // Khởi tạo các Select Box của Bộ Lọc
     function initFilters() {
         const questions = getQuestions();
         const selectQ = document.getElementById('filter-q');
@@ -389,7 +391,6 @@
         updateFilterAns(); 
     }
 
-    // Khi chọn Câu hỏi, tự cập nhật danh sách Đáp án tương ứng
     function updateFilterAns() {
         const selectQ = document.getElementById('filter-q').value;
         const selectA = document.getElementById('filter-a');
@@ -405,10 +406,9 @@
                 });
             }
         }
-        renderTable(); // Vẽ lại bảng khi bộ lọc thay đổi
+        renderTable();
     }
 
-    // Render bảng danh sách áp dụng bộ lọc
     function renderTable() {
         const questions = getQuestions();
         const responses = JSON.parse(localStorage.getItem('aiSurveyDataV2')) || [];
@@ -416,7 +416,6 @@
         const filterQ = document.getElementById('filter-q').value;
         const filterA = document.getElementById('filter-a').value;
         
-        // Lọc dữ liệu mảng
         let filteredRes = responses;
         if (filterQ !== 'all' && filterA !== 'all') {
             filteredRes = responses.filter(r => r.answers[filterQ] === filterA);
@@ -425,13 +424,11 @@
         const thead = document.getElementById('results-thead');
         const tbody = document.getElementById('results-tbody');
         
-        // Render Header
         let theadHtml = `<tr><th>STT</th><th>Họ và tên</th><th>Thời gian</th>`;
         questions.forEach((q, index) => { theadHtml += `<th>Câu ${index + 1}</th>`; });
         theadHtml += `</tr>`;
         thead.innerHTML = questions.length > 0 ? theadHtml : '<tr><th>Chưa có câu hỏi nào</th></tr>';
 
-        // Render Body
         tbody.innerHTML = '';
         if (filteredRes.length === 0) {
             tbody.innerHTML = `<tr><td colspan="${questions.length + 3}" style="text-align:center;">Không có dữ liệu phù hợp với bộ lọc</td></tr>`;
@@ -569,7 +566,7 @@
             questions.push({ id: newId, text: text, options: options });
         }
 
-        localStorage.setItem('aiQuestions', JSON.stringify(questions));
+        localStorage.setItem('aiQuestionsV3', JSON.stringify(questions));
         closeQuestionEditor();
         renderQuestionsManager();
     }
@@ -578,7 +575,7 @@
         if(confirm("Chắc chắn muốn xóa câu hỏi này?")) {
             let questions = getQuestions();
             questions = questions.filter(q => q.id !== qId);
-            localStorage.setItem('aiQuestions', JSON.stringify(questions));
+            localStorage.setItem('aiQuestionsV3', JSON.stringify(questions));
             renderQuestionsManager();
         }
     }
